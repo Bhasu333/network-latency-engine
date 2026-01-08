@@ -22,8 +22,10 @@ class NetworkChecker {
     public static long checkLatency(String host, int port, int timeoutMillis) {
         long t0 = System.currentTimeMillis();
         try (Socket s = new Socket()) {
-            s.connect(new InetSocketAddress(host, port), timeoutMillis);
+            s.connect(new InetSocketAddress(host, port), Math.max(100, timeoutMillis));
             return System.currentTimeMillis() - t0;
+        } catch (SocketTimeoutException e) {
+            return -1;
         } catch (Exception e) {
             return -1;
         }
