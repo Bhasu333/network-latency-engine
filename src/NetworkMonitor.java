@@ -44,3 +44,14 @@ class NetworkChecker {
         return ((double) failed / attempts) * 100.0;
     }
 }
+
+public class NetworkMonitor {
+    public static void main(String[] args) {
+        String[] hosts = {"google.com", "1.1.1.1", "8.8.8.8"};
+        for (String host : hosts) {
+            long lat = NetworkChecker.checkLatency(host, 80, 1000);
+            double loss = NetworkChecker.checkPacketLoss(host, 80, 3, 1000);
+            System.out.println("Host: " + host + " | Latency: " + lat + "ms | Loss: " + loss + "%");
+        }
+    }
+}
