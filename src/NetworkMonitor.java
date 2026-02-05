@@ -3,6 +3,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 class ServerCheckResult {
     String serverAddress;
@@ -48,10 +49,15 @@ class NetworkChecker {
 public class NetworkMonitor {
     public static void main(String[] args) {
         String[] hosts = {"google.com", "1.1.1.1", "8.8.8.8"};
+        ExecutorService executor = Executors.newFixedThreadPool(hosts.length);
+
         for (String host : hosts) {
-            long lat = NetworkChecker.checkLatency(host, 80, 1000);
-            double loss = NetworkChecker.checkPacketLoss(host, 80, 3, 1000);
-            System.out.println("Host: " + host + " | Latency: " + lat + "ms | Loss: " + loss + "%");
+            executor.submit(() -> {
+                long lat = NetworkChecker.checkLatency(host, 80, 1000);
+                double loss = NetworkChecker.checkPacketLoss(host, 80, 3, 1000);
+                System.out.println(Thread.currentThread().getName() + " -> " + host + ": " + lat + "ms, loss: " + loss + "%");
+            });
         }
+        executor.shutdown();
     }
 }
