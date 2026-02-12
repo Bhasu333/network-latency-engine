@@ -46,18 +46,18 @@ class NetworkChecker {
     }
 }
 
-public class NetworkMonitor {
-    public static void main(String[] args) {
-        String[] hosts = {"google.com", "1.1.1.1", "8.8.8.8"};
-        ExecutorService executor = Executors.newFixedThreadPool(hosts.length);
+class TelemetryQueue {
+    private final ConcurrentLinkedQueue<ServerCheckResult> queue = new ConcurrentLinkedQueue<>();
 
-        for (String host : hosts) {
-            executor.submit(() -> {
-                long lat = NetworkChecker.checkLatency(host, 80, 1000);
-                double loss = NetworkChecker.checkPacketLoss(host, 80, 3, 1000);
-                System.out.println(Thread.currentThread().getName() + " -> " + host + ": " + lat + "ms, loss: " + loss + "%");
-            });
-        }
-        executor.shutdown();
+    public void add(ServerCheckResult result) {
+        if (result != null) queue.add(result);
+    }
+
+    public ServerCheckResult poll() {
+        return queue.poll();
+    }
+
+    public boolean isEmpty() {
+        return queue.isEmpty();
     }
 }
