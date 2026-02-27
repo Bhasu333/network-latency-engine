@@ -24,9 +24,10 @@ class ServerCheckResult {
 
 class NetworkChecker {
     public static long checkLatency(String host, int port, int timeoutMillis) {
+        if (host == null || host.trim().isEmpty()) return -1;
         long t0 = System.currentTimeMillis();
         try (Socket s = new Socket()) {
-            s.connect(new InetSocketAddress(host, port), timeoutMillis);
+            s.connect(new InetSocketAddress(host, port), Math.max(100, timeoutMillis));
             return System.currentTimeMillis() - t0;
         } catch (Exception e) {
             return -1;
@@ -34,7 +35,7 @@ class NetworkChecker {
     }
 
     public static double checkPacketLoss(String host, int port, int attempts, int timeoutMillis) {
-        if (attempts <= 0) return 0.0;
+        if (attempts <= 0 || host == null) return 0.0;
         int failed = 0;
         for (int i = 0; i < attempts; i++) {
             long lat = checkLatency(host, port, timeoutMillis);
@@ -50,7 +51,9 @@ class TelemetryQueue {
     private final ConcurrentLinkedQueue<ServerCheckResult> queue = new ConcurrentLinkedQueue<>();
 
     public void add(ServerCheckResult result) {
-        if (result != null) queue.add(result);
+        if (result != null && result.serverAddress != null) {
+            queue.add(result);
+        }
     }
 
     public ServerCheckResult poll() {
@@ -59,5 +62,9 @@ class TelemetryQueue {
 
     public boolean isEmpty() {
         return queue.isEmpty();
+    }
+
+    public int size() {
+        return queue.size();
     }
 }
