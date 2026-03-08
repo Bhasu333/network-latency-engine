@@ -20,51 +20,39 @@ class ServerCheckResult {
         this.packetLossPercent = packetLossPercent;
         this.reachable = reachable;
     }
+
+    public String toCsvRow() {
+        return timestampMillis + "," + serverAddress + "," + latencyMillis + "," + String.format(Locale.US, "%.2f", packetLossPercent) + "," + reachable;
+    }
 }
 
-class NetworkChecker {
-    public static long checkLatency(String host, int port, int timeoutMillis) {
-        if (host == null || host.trim().isEmpty()) return -1;
-        long t0 = System.currentTimeMillis();
-        try (Socket s = new Socket()) {
-            s.connect(new InetSocketAddress(host, port), Math.max(100, timeoutMillis));
-            return System.currentTimeMillis() - t0;
-        } catch (Exception e) {
-            return -1;
-        }
+class CsvLogger {
+    private String filePath;
+
+    public CsvLogger(String filePath) {
+        this.filePath = filePath;
+        initHeader();
     }
 
-    public static double checkPacketLoss(String host, int port, int attempts, int timeoutMillis) {
-        if (attempts <= 0 || host == null) return 0.0;
-        int failed = 0;
-        for (int i = 0; i < attempts; i++) {
-            long lat = checkLatency(host, port, timeoutMillis);
-            if (lat < 0) {
-                failed++;
+    private void initHeader() {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
+                bw.write("timestamp,server,latency_ms,packet_loss_pct,reachable");
+                bw.newLine();
+                bw.flush();
+            } catch (IOException e) {
             }
         }
-        return ((double) failed / attempts) * 100.0;
     }
-}
 
-class TelemetryQueue {
-    private final ConcurrentLinkedQueue<ServerCheckResult> queue = new ConcurrentLinkedQueue<>();
-
-    public void add(ServerCheckResult result) {
-        if (result != null && result.serverAddress != null) {
-            queue.add(result);
+    public synchronized void logResult(ServerCheckResult result) {
+        if (result == null) return;
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath, true))) {
+            bw.write(result.toCsvRow());
+            bw.newLine();
+            bw.flush();
+        } catch (IOException e) {
         }
-    }
-
-    public ServerCheckResult poll() {
-        return queue.poll();
-    }
-
-    public boolean isEmpty() {
-        return queue.isEmpty();
-    }
-
-    public int size() {
-        return queue.size();
     }
 }
