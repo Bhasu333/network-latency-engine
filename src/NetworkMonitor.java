@@ -4,55 +4,71 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-class ServerCheckResult {
-    String serverAddress;
-    long timestampMillis;
-    long latencyMillis;
-    double packetLossPercent;
-    boolean reachable;
+class CsvLogger implements AutoCloseable {
+    private final String filePath;
+    private final TelemetryQueue queue;
+    private final AtomicBoolean running = new AtomicBoolean(true);
+    private final Thread writerThread;
+    private BufferedWriter writer;
 
-    ServerCheckResult(String serverAddress, long timestampMillis, long latencyMillis,
-                      double packetLossPercent, boolean reachable) {
-        this.serverAddress = serverAddress;
-        this.timestampMillis = timestampMillis;
-        this.latencyMillis = latencyMillis;
-        this.packetLossPercent = packetLossPercent;
-        this.reachable = reachable;
-    }
-
-    public String toCsvRow() {
-        return timestampMillis + "," + serverAddress + "," + latencyMillis + "," + String.format(Locale.US, "%.2f", packetLossPercent) + "," + reachable;
-    }
-}
-
-class CsvLogger {
-    private String filePath;
-
-    public CsvLogger(String filePath) {
+    public CsvLogger(String filePath, TelemetryQueue queue) {
         this.filePath = filePath;
-        initHeader();
+        this.queue = queue;
+        initWriter();
+
+        this.writerThread = new Thread(this::asyncWriteLoop, "Telemetry-Async-Writer");
+        this.writerThread.setDaemon(true);
+        this.writerThread.start();
     }
 
-    private void initHeader() {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
-                bw.write("timestamp,server,latency_ms,packet_loss_pct,reachable");
-                bw.newLine();
-                bw.flush();
+    private void initWriter() {
+        try {
+            File file = new File(filePath);
+            boolean isNew = !file.exists() || file.length() == 0;
+            this.writer = new BufferedWriter(new FileWriter(file, true));
+            if (isNew) {
+                writer.write("timestamp,server,latency_ms,packet_loss_pct,reachable");
+                writer.newLine();
+                writer.flush();
+            }
+        } catch (IOException e) {
+        }
+    }
+
+    private void asyncWriteLoop() {
+        while (running.get() || !queue.isEmpty()) {
+            try {
+                ServerCheckResult res = queue.poll();
+                if (res != null && writer != null) {
+                    writer.write(res.toCsvRow());
+                    writer.newLine();
+                    writer.flush();
+                } else {
+                    Thread.sleep(50);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
             } catch (IOException e) {
             }
         }
     }
 
-    public synchronized void logResult(ServerCheckResult result) {
-        if (result == null) return;
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath, true))) {
-            bw.write(result.toCsvRow());
-            bw.newLine();
-            bw.flush();
-        } catch (IOException e) {
+    @Override
+    public void close() {
+        running.set(false);
+        try {
+            writerThread.join(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (writer != null) {
+            try {
+                writer.close();
+            } catch (IOException e) {
+            }
         }
     }
 }
