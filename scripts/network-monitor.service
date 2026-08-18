@@ -1,0 +1,16 @@
+[Unit]
+Description=Network Latency Observability Engine Service
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/network-latency-engine
+ExecStart=/usr/bin/java -cp . engine.NetworkMonitor --continuous
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/network-monitor.log
+StandardError=append:/var/log/network-monitor-error.log
+
+[Install]
+WantedBy=multi-user.target
