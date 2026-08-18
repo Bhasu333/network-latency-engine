@@ -18,7 +18,8 @@ import {
   Info,
   Terminal,
   Copy,
-  Check
+  Check,
+  Sparkles
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -45,7 +46,8 @@ export default function App() {
   const [intervalSec, setIntervalSec] = useState(3);
   const [isLive, setIsLive] = useState(true);
   const [showArchModal, setShowArchModal] = useState(false);
-  const [showDataSourceModal, setShowDataSourceModal] = useState(false);
+  // Auto-open Welcome Data Source Pop-up on initial page load so recruiters never miss it
+  const [showDataSourceModal, setShowDataSourceModal] = useState(true);
   const [totalProbes, setTotalProbes] = useState(1420);
   const [isJavaConnected, setIsJavaConnected] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
@@ -443,35 +445,36 @@ export default function App() {
 
       </main>
 
-      {/* Data Source & Mode Guide Modal */}
+      {/* Welcome Data Source & Mode Guide Pop-up (Opens automatically on page load) */}
       {showDataSourceModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111827] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 relative shadow-2xl">
+          <div className="bg-[#111827] border border-cyan-500/40 rounded-2xl max-w-2xl w-full p-6 space-y-5 relative shadow-2xl animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setShowDataSourceModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800 transition"
+              title="Close guide"
             >
               ✕
             </button>
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Info className="w-5 h-5 text-cyan-400" />
-                Data Source Modes & Local Java Integration
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                This dashboard supports dual data sources: live Vercel cloud streaming and local Java backend integration.
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Welcome to the Network Observability Dashboard
+                </h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                This full-stack system supports dual telemetry data sources: live Vercel cloud streaming and local Java backend engine sync.
               </p>
             </div>
 
             <div className="space-y-4 font-mono text-xs">
-              
-              {/* Mode A: Standalone Cloud Simulator */}
               <div className="p-4 bg-[#0b0f19] border border-cyan-500/30 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-cyan-300 flex items-center gap-1.5">
                     <Radio className="w-3.5 h-3.5 text-cyan-400" /> Mode 1: Edge Stream Simulator (Active by Default)
                   </span>
-                  <span className="px-2 py-0.5 text-[10px] bg-cyan-500/10 text-cyan-300 rounded border border-cyan-500/30">
+                  <span className="px-2 py-0.5 text-[10px] bg-cyan-500/10 text-cyan-300 rounded border border-cyan-500/30 font-semibold">
                     Cloud Vercel Demo
                   </span>
                 </div>
@@ -480,13 +483,12 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Mode B: Local Java Backend Live Sync */}
               <div className="p-4 bg-[#0b0f19] border border-emerald-500/30 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-emerald-300 flex items-center gap-1.5">
                     <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Mode 2: Live Local Java Engine Sync (localhost:8080)
                   </span>
-                  <span className="px-2 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-300 rounded border border-emerald-500/30">
+                  <span className="px-2 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-300 rounded border border-emerald-500/30 font-semibold">
                     Live Java Socket Probes
                   </span>
                 </div>
@@ -509,22 +511,20 @@ export default function App() {
                   </div>
                 </div>
               </div>
-
             </div>
 
-            <div className="text-right">
+            <div className="text-right pt-1">
               <button 
                 onClick={() => setShowDataSourceModal(false)}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs rounded-lg transition"
+                className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-xl transition shadow-lg shadow-cyan-600/20"
               >
-                Got It, Close Guide
+                Got It, Explore Dashboard 🚀
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Architecture Modal */}
       {showArchModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#111827] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl">
