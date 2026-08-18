@@ -19,7 +19,12 @@ import {
   Terminal,
   Copy,
   Check,
-  Sparkles
+  Sparkles,
+  ArrowRight,
+  Cpu,
+  Globe,
+  Code,
+  CheckCircle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -40,14 +45,68 @@ const INITIAL_SERVERS = [
   { id: '5', name: 'unreachable.invalid', port: 80, baseLatency: 0, loss: 100, status: 'DNS_FAILURE', color: '#a855f7' },
 ];
 
+const ARCH_NODES = [
+  {
+    id: 1,
+    title: 'Multithreaded Java Engine',
+    subtitle: 'Low-Level Socket Probing',
+    tag: 'Java SE / Concurrency',
+    status: 'RUNNING',
+    statusColor: 'emerald',
+    icon: Cpu,
+    color: 'cyan',
+    borderColor: 'border-cyan-500/40',
+    bgColor: 'bg-cyan-500/10',
+    details: {
+      tech: ['Java', 'java.net.Socket', 'ExecutorService', 'FixedThreadPool'],
+      desc: 'Concurrently probes target edge endpoints over raw TCP sockets. Measures connection latency and samples packet loss batches without main-thread blocking.',
+      spec: 'Concurrency: FixedThreadPool(N) | Timeout: 1000ms'
+    }
+  },
+  {
+    id: 2,
+    title: 'Non-Blocking Telemetry Buffer',
+    subtitle: 'LinkedBlockingQueue & Async I/O',
+    tag: 'Concurrency / Data Structures',
+    status: 'I/O ASYNC',
+    statusColor: 'purple',
+    icon: Database,
+    color: 'purple',
+    borderColor: 'border-purple-500/40',
+    bgColor: 'bg-purple-500/10',
+    details: {
+      tech: ['LinkedBlockingQueue', 'Daemon Consumer Thread', 'BufferedWriter'],
+      desc: 'Decouples high-frequency probe worker threads from disk I/O. Dedicated daemon writer thread consumes from blocking queue using wait/notify semantics (poll 200ms).',
+      spec: 'Buffer: Lock-Free Blocking Queue | Throughput: 10,000+ daily log pts'
+    }
+  },
+  {
+    id: 3,
+    title: 'React Observability Web UI',
+    subtitle: 'Live Stream Dashboard',
+    tag: 'React 18 / Tailwind / Vercel',
+    status: 'ONLINE',
+    statusColor: 'emerald',
+    icon: Globe,
+    color: 'emerald',
+    borderColor: 'border-emerald-500/40',
+    bgColor: 'bg-emerald-500/10',
+    details: {
+      tech: ['React 18', 'Vite', 'Tailwind CSS', 'Recharts', 'REST API (localhost:8080)'],
+      desc: 'Visualizes real-time time-series latency streams, packet loss gauges, and failure diagnostics. Deployed live on Vercel with automatic local REST API fallback.',
+      spec: 'Deployment: Vercel Cloud | API: REST JSON (/api/telemetry)'
+    }
+  }
+];
+
 export default function App() {
   const [streamData, setStreamData] = useState([]);
   const [servers, setServers] = useState(INITIAL_SERVERS);
   const [intervalSec, setIntervalSec] = useState(3);
   const [isLive, setIsLive] = useState(true);
   const [showArchModal, setShowArchModal] = useState(false);
-  // Auto-open Welcome Data Source Pop-up on initial page load so recruiters never miss it
   const [showDataSourceModal, setShowDataSourceModal] = useState(true);
+  const [selectedArchNode, setSelectedArchNode] = useState(1);
   const [totalProbes, setTotalProbes] = useState(1420);
   const [isJavaConnected, setIsJavaConnected] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
@@ -166,6 +225,8 @@ export default function App() {
     servers.filter(s => s.status === 'REACHABLE').reduce((acc, s) => acc + s.baseLatency, 0) / (activeReachable || 1)
   );
 
+  const activeNodeData = ARCH_NODES.find(n => n.id === selectedArchNode) || ARCH_NODES[0];
+
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
       {/* Top Navigation Header */}
@@ -217,13 +278,13 @@ export default function App() {
               Data Source Info
             </button>
 
-            {/* Architecture Modal Trigger */}
+            {/* Visual Architecture Modal Trigger */}
             <button 
               onClick={() => setShowArchModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-xs font-medium rounded-lg text-slate-200 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-xs font-semibold rounded-lg text-cyan-300 transition shadow-lg shadow-cyan-500/10"
             >
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              Architecture Flow
+              Visual Architecture
             </button>
 
             <a 
@@ -445,7 +506,7 @@ export default function App() {
 
       </main>
 
-      {/* Welcome Data Source & Mode Guide Pop-up (Opens automatically on page load) */}
+      {/* Welcome Data Source & Mode Guide Pop-up */}
       {showDataSourceModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#111827] border border-cyan-500/40 rounded-2xl max-w-2xl w-full p-6 space-y-5 relative shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -525,40 +586,119 @@ export default function App() {
         </div>
       )}
 
+      {/* NEW STUNNING VISUAL ARCHITECTURE FLOW MODAL */}
       {showArchModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111827] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111827] border border-cyan-500/40 rounded-3xl max-w-4xl w-full p-7 space-y-6 relative shadow-2xl animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setShowArchModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800"
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 transition"
+              title="Close modal"
             >
               ✕
             </button>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-cyan-400" />
-              Full-Stack Architecture Overview
-            </h3>
             
-            <div className="p-4 bg-[#0b0f19] border border-slate-800 rounded-xl space-y-3 font-mono text-xs text-slate-300">
-              <div className="p-2.5 bg-slate-900 border border-cyan-500/30 rounded-lg text-cyan-300">
-                1. Multithreaded Java Engine: Socket probes (google.com, 1.1.1.1, etc.)
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Layers className="w-5 h-5 text-cyan-400 animate-pulse" />
+                <h3 className="text-xl font-bold text-white tracking-tight">
+                  Full-Stack Visual Architecture & Pipeline Stream
+                </h3>
               </div>
-              <div className="text-center text-slate-500">↓ (Telemetry Points)</div>
-              <div className="p-2.5 bg-slate-900 border border-purple-500/30 rounded-lg text-purple-300">
-                2. LinkedBlockingQueue & Async Writer Thread (Zero Thread Blocking I/O)
+              <p className="text-xs text-slate-400 font-mono">
+                Interactive node pipeline detailing data propagation from raw Java TCP sockets to the React web UI.
+              </p>
+            </div>
+
+            {/* Interactive 3-Node Horizontal Pipeline Graph */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative py-2">
+              
+              {ARCH_NODES.map((node, idx) => {
+                const IconComp = node.icon;
+                const isSelected = selectedArchNode === node.id;
+
+                return (
+                  <div key={node.id} className="relative flex flex-col">
+                    {/* Node Box */}
+                    <button
+                      onClick={() => setSelectedArchNode(node.id)}
+                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden flex-1 ${
+                        isSelected 
+                          ? `${node.borderColor} bg-slate-900 shadow-xl ring-2 ring-cyan-500/20 scale-[1.02]` 
+                          : 'border-slate-800 bg-[#0b0f19]/80 hover:border-slate-700 hover:bg-slate-900/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`p-2 rounded-xl ${node.bgColor} text-${node.color}-400`}>
+                          <IconComp className="w-5 h-5" />
+                        </div>
+                        <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-${node.statusColor}-500/10 border border-${node.statusColor}-500/30 text-${node.statusColor}-400`}>
+                          ● {node.status}
+                        </span>
+                      </div>
+
+                      <span className="text-[10px] font-mono font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        Node 0{node.id} • {node.tag}
+                      </span>
+                      <h4 className="font-bold text-sm text-white mb-1">{node.title}</h4>
+                      <p className="text-xs text-slate-400 font-mono">{node.subtitle}</p>
+                    </button>
+
+                    {/* Animated Data Stream Connector Arrow (between nodes) */}
+                    {idx < 2 && (
+                      <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-[#0b0f19] border border-cyan-500/40 text-cyan-400 flex items-center justify-center shadow-lg">
+                          <ArrowRight className="w-3.5 h-3.5 animate-pulse" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+            </div>
+
+            {/* Interactive Node Inspector Panel */}
+            <div className="p-5 bg-[#0b0f19] border border-slate-800 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <Code className="w-4 h-4 text-cyan-400" />
+                  <span className="font-bold text-sm text-white font-mono">
+                    Node 0{activeNodeData.id}: {activeNodeData.title} Deep-Dive
+                  </span>
+                </div>
+                <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+                  {activeNodeData.details.spec}
+                </span>
               </div>
-              <div className="text-center text-slate-500">↓ (REST API: http://localhost:8080/api/telemetry)</div>
-              <div className="p-2.5 bg-slate-900 border border-emerald-500/30 rounded-lg text-emerald-300">
-                3. React 18 + Vite + Tailwind CSS Dashboard (Vercel Cloud Deployment)
+
+              <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                {activeNodeData.details.desc}
+              </p>
+
+              <div className="pt-2">
+                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block mb-2">
+                  Technologies & Standards Used:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {activeNodeData.details.tech.map((t, i) => (
+                    <span key={i} className="px-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-xs font-mono text-slate-200 flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-cyan-400" /> {t}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-slate-500 font-mono">
+                Click any node box above to inspect its architecture details
+              </span>
               <button 
                 onClick={() => setShowArchModal(false)}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs rounded-lg transition"
+                className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-xl transition shadow-lg shadow-cyan-600/20"
               >
-                Close Architecture View
+                Close Architecture Visualizer
               </button>
             </div>
           </div>
