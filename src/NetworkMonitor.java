@@ -28,6 +28,11 @@ final class ServerCheckResult {
         return timestampMillis + "," + serverAddress + "," + latencyMillis + "," + String.format(Locale.US, "%.2f", packetLossPercent) + "," + reachable + "," + statusDetail;
     }
 
+    public String toJsonRow() {
+        return String.format(Locale.US, "{\"timestamp\":%d,\"server\":\"%s\",\"latency_ms\":%d,\"packet_loss_pct\":%.2f,\"reachable\":%b,\"status_detail\":\"%s\"}",
+                timestampMillis, serverAddress, latencyMillis, packetLossPercent, reachable, statusDetail);
+    }
+
     @Override
     public String toString() {
         if (!reachable) {
