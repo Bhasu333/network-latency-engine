@@ -2,9 +2,13 @@ package engine;
 
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
 
 final class ServerCheckResult {
     final String serverAddress;
@@ -325,9 +329,13 @@ public class NetworkMonitor {
     private static final int PACKET_LOSS_PROBES = 5;
     private static final String LOG_FILE = "network_telemetry.csv";
     private static final int CHECK_INTERVAL_SECONDS = 5;
+    private static final Map<String, ServerCheckResult> latestResultsMap = new ConcurrentHashMap<>();
+    private static HttpServer httpServer;
 
     public static void main(String[] args) {
         System.out.println("=== Starting Continuous Network Health Monitor Service ===");
+
+        startHttpServer(8080);
 
         TelemetryQueue queue = new TelemetryQueue();
 
@@ -341,6 +349,7 @@ public class NetworkMonitor {
         // Graceful shutdown hook (runs on Ctrl+C or process exit)
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\nShutting down monitor service...");
+            if (httpServer != null) httpServer.stop(0);
             scheduler.shutdown();
             workerPool.shutdown();
             logger.close();
@@ -377,6 +386,35 @@ public class NetworkMonitor {
         }
     }
 
+    private static void startHttpServer(int port) {
+        try {
+            httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+            httpServer.createContext("/api/telemetry", exchange -> {
+                StringBuilder jsonBuilder = new StringBuilder("[");
+                int count = 0;
+                for (ServerCheckResult res : latestResultsMap.values()) {
+                    if (count > 0) jsonBuilder.append(",");
+                    jsonBuilder.append(res.toJsonRow());
+                    count++;
+                }
+                jsonBuilder.append("]");
+
+                byte[] resp = jsonBuilder.toString().getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, resp.length);
+                OutputStream os = exchange.getResponseBody();
+                os.write(resp);
+                os.close();
+            });
+            httpServer.setExecutor(Executors.newSingleThreadExecutor());
+            httpServer.start();
+            System.out.println("Live Telemetry REST API listening on http://localhost:" + port + "/api/telemetry");
+        } catch (IOException e) {
+            System.err.println("[NetworkMonitor] Could not start HTTP server on port " + port + ": " + e.getMessage());
+        }
+    }
+
     private static void runProbeCycle(ExecutorService workerPool, TelemetryQueue queue) {
         List<Future<?>> futures = new ArrayList<>();
 
@@ -391,6 +429,7 @@ public class NetworkMonitor {
                     host, now, latencyResult.latencyMs, lossPct, reachable, latencyResult.statusDetail
                 );
 
+                latestResultsMap.put(host, result);
                 System.out.println("Probed: " + result);
                 queue.add(result);
             }));

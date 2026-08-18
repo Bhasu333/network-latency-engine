@@ -13,7 +13,8 @@ import {
   ShieldAlert, 
   Sliders,
   Layers,
-  Database
+  Database,
+  Radio
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -41,10 +42,9 @@ export default function App() {
   const [isLive, setIsLive] = useState(true);
   const [showArchModal, setShowArchModal] = useState(false);
   const [totalProbes, setTotalProbes] = useState(1420);
+  const [isJavaConnected, setIsJavaConnected] = useState(false);
 
-  // Generate real-time telemetry stream simulation matching Java backend probes
   useEffect(() => {
-    // Generate initial history
     const initialHistory = [];
     const now = Date.now();
     for (let i = 12; i >= 0; i--) {
@@ -61,12 +61,63 @@ export default function App() {
     setStreamData(initialHistory);
   }, []);
 
+  // Poll local Java REST API (http://localhost:8080/api/telemetry) with automatic simulation fallback
   useEffect(() => {
     if (!isLive) return;
 
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch('http://localhost:8080/api/telemetry', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const telemetryList = await res.json();
+          if (Array.isArray(telemetryList) && telemetryList.length > 0) {
+            setIsJavaConnected(true);
+
+            let googleLat = 28;
+            let cloudflareLat = 14;
+
+            setServers(prev => prev.map(s => {
+              const item = telemetryList.find(t => t.server === s.name);
+              if (item) {
+                if (s.name === 'google.com') googleLat = item.latency_ms > 0 ? item.latency_ms : 0;
+                if (s.name === '1.1.1.1') cloudflareLat = item.latency_ms > 0 ? item.latency_ms : 0;
+                return {
+                  ...s,
+                  baseLatency: item.latency_ms > 0 ? item.latency_ms : 0,
+                  loss: item.packet_loss_pct,
+                  status: item.status_detail
+                };
+              }
+              return s;
+            }));
+
+            setStreamData(prev => {
+              const updated = [...prev.slice(1)];
+              updated.push({
+                time: timeStr,
+                'google.com': googleLat,
+                '1.1.1.1': cloudflareLat,
+                '8.8.8.8': 0,
+                '127.0.0.1': 0,
+                'unreachable.invalid': 0,
+              });
+              return updated;
+            });
+            setTotalProbes(p => p + 5);
+            return;
+          }
+        }
+      } catch (e) {
+        setIsJavaConnected(false);
+      }
+
+      // Edge Stream Simulation Fallback (when local Java service is not running)
       const newGoogleLat = Math.max(10, Math.floor(28 + (Math.random() * 12 - 6)));
       const newCloudflareLat = Math.max(8, Math.floor(14 + (Math.random() * 6 - 3)));
 
@@ -103,7 +154,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
-      {/* Top Navigation Header */}
       <header className="border-b border-slate-800/80 bg-[#111827]/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
@@ -124,7 +174,17 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Live Indicator */}
+            {/* Live Data Connection Source Indicator */}
+            {isJavaConnected ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                <Radio className="w-3.5 h-3.5 animate-pulse" /> JAVA ENGINE LIVE (localhost:8080)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-medium bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+                <Radio className="w-3.5 h-3.5" /> EDGE SIMULATOR MODE
+              </span>
+            )}
+
             <button 
               onClick={() => setIsLive(!isLive)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium border transition ${
@@ -134,10 +194,9 @@ export default function App() {
               }`}
             >
               <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
-              {isLive ? 'LIVE STREAMING' : 'PAUSED'}
+              {isLive ? 'STREAMING' : 'PAUSED'}
             </button>
 
-            {/* Architecture Modal Trigger */}
             <button 
               onClick={() => setShowArchModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium rounded-lg text-slate-300 transition"
@@ -158,13 +217,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-6">
-        
-        {/* KPI Metrics Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          {/* Card 1: Average Latency */}
           <div className="bg-[#111827] border border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-cyan-500/40 transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Avg TCP Latency</span>
@@ -180,7 +234,6 @@ export default function App() {
             </p>
           </div>
 
-          {/* Card 2: Total Telemetry Points */}
           <div className="bg-[#111827] border border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/40 transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Telemetry Points</span>
@@ -196,7 +249,6 @@ export default function App() {
             </p>
           </div>
 
-          {/* Card 3: Non-Blocking Buffer Status */}
           <div className="bg-[#111827] border border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-purple-500/40 transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Async Writer Buffer</span>
@@ -211,7 +263,6 @@ export default function App() {
             </p>
           </div>
 
-          {/* Card 4: Differentiated Failure Mode Engine */}
           <div className="bg-[#111827] border border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-amber-500/40 transition">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Failure Diagnostics</span>
@@ -225,10 +276,8 @@ export default function App() {
               Categorized: DNS, Timeout, Refused
             </p>
           </div>
-
         </div>
 
-        {/* Real-time Time Series Telemetry Chart */}
         <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -241,7 +290,6 @@ export default function App() {
               </p>
             </div>
 
-            {/* Probe Interval Switcher */}
             <div className="flex items-center gap-2 bg-[#0b0f19] p-1 rounded-lg border border-slate-800 text-xs font-mono">
               <span className="px-2 text-slate-400 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" /> Interval:
@@ -286,7 +334,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Server Probe Status Breakdown Matrix */}
         <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -377,7 +424,6 @@ export default function App() {
 
       </main>
 
-      {/* Architecture Modal */}
       {showArchModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#111827] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl">
@@ -400,7 +446,7 @@ export default function App() {
               <div className="p-2.5 bg-slate-900 border border-purple-500/30 rounded-lg text-purple-300">
                 2. LinkedBlockingQueue & Async Writer Thread (Zero Thread Blocking I/O)
               </div>
-              <div className="text-center text-slate-500">↓ (CSV / JSON Stream)</div>
+              <div className="text-center text-slate-500">↓ (REST API: http://localhost:8080/api/telemetry)</div>
               <div className="p-2.5 bg-slate-900 border border-emerald-500/30 rounded-lg text-emerald-300">
                 3. React 18 + Vite + Tailwind CSS Dashboard (Vercel Cloud Deployment)
               </div>
@@ -418,7 +464,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-[#0b0f19] py-4 text-center text-xs text-slate-500 font-mono">
         Bhaswath Datla | UW Computer Science & Engineering | Network Observability Engine
       </footer>
