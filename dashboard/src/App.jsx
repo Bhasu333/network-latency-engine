@@ -14,7 +14,11 @@ import {
   Sliders,
   Layers,
   Database,
-  Radio
+  Radio,
+  Info,
+  Terminal,
+  Copy,
+  Check
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -41,8 +45,10 @@ export default function App() {
   const [intervalSec, setIntervalSec] = useState(3);
   const [isLive, setIsLive] = useState(true);
   const [showArchModal, setShowArchModal] = useState(false);
+  const [showDataSourceModal, setShowDataSourceModal] = useState(false);
   const [totalProbes, setTotalProbes] = useState(1420);
   const [isJavaConnected, setIsJavaConnected] = useState(false);
+  const [copiedCmd, setCopiedCmd] = useState(false);
 
   useEffect(() => {
     const initialHistory = [];
@@ -147,6 +153,12 @@ export default function App() {
     return () => clearInterval(timer);
   }, [isLive, intervalSec]);
 
+  const copyTerminalCmd = () => {
+    navigator.clipboard.writeText('javac -d . src/NetworkMonitor.java; java engine.NetworkMonitor --continuous');
+    setCopiedCmd(true);
+    setTimeout(() => setCopiedCmd(false), 2000);
+  };
+
   const activeReachable = servers.filter(s => s.status === 'REACHABLE').length;
   const avgLatency = Math.round(
     servers.filter(s => s.status === 'REACHABLE').reduce((acc, s) => acc + s.baseLatency, 0) / (activeReachable || 1)
@@ -154,6 +166,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
+      {/* Top Navigation Header */}
       <header className="border-b border-slate-800/80 bg-[#111827]/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
@@ -173,33 +186,39 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Live Data Connection Source Indicator */}
-            {isJavaConnected ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                <Radio className="w-3.5 h-3.5 animate-pulse" /> JAVA ENGINE LIVE (localhost:8080)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-medium bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
-                <Radio className="w-3.5 h-3.5" /> EDGE SIMULATOR MODE
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsLive(!isLive)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium border transition ${
-                isLive 
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' 
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
-              }`}
+          <div className="flex items-center gap-2.5">
+            {/* Clickable Data Source Mode Badge */}
+            <button
+              onClick={() => setShowDataSourceModal(true)}
+              className="group relative focus:outline-none"
+              title="Click to view Data Source & Local Integration guide"
             >
-              <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
-              {isLive ? 'STREAMING' : 'PAUSED'}
+              {isJavaConnected ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm">
+                  <Radio className="w-3.5 h-3.5 animate-pulse" /> JAVA ENGINE LIVE
+                  <Info className="w-3 h-3 text-emerald-400/70 opacity-60 group-hover:opacity-100" />
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-cyan-500/10 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 transition shadow-sm">
+                  <Radio className="w-3.5 h-3.5" /> EDGE SIMULATOR MODE
+                  <Info className="w-3 h-3 text-cyan-300/70 opacity-60 group-hover:opacity-100" />
+                </span>
+              )}
             </button>
 
+            {/* How Live Sync Works Button */}
+            <button 
+              onClick={() => setShowDataSourceModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-xs font-medium rounded-lg text-slate-200 transition"
+            >
+              <Info className="w-3.5 h-3.5 text-cyan-400" />
+              Data Source Info
+            </button>
+
+            {/* Architecture Modal Trigger */}
             <button 
               onClick={() => setShowArchModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium rounded-lg text-slate-300 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-xs font-medium rounded-lg text-slate-200 transition"
             >
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
               Architecture Flow
@@ -209,7 +228,7 @@ export default function App() {
               href="https://github.com/Bhasu333/network-latency-engine" 
               target="_blank" 
               rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs rounded-lg transition shadow-lg shadow-cyan-600/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-cyan-600/20"
             >
               GitHub Source
             </a>
@@ -424,6 +443,88 @@ export default function App() {
 
       </main>
 
+      {/* Data Source & Mode Guide Modal */}
+      {showDataSourceModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111827] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 relative shadow-2xl">
+            <button 
+              onClick={() => setShowDataSourceModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800"
+            >
+              ✕
+            </button>
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Info className="w-5 h-5 text-cyan-400" />
+                Data Source Modes & Local Java Integration
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                This dashboard supports dual data sources: live Vercel cloud streaming and local Java backend integration.
+              </p>
+            </div>
+
+            <div className="space-y-4 font-mono text-xs">
+              
+              {/* Mode A: Standalone Cloud Simulator */}
+              <div className="p-4 bg-[#0b0f19] border border-cyan-500/30 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                    <Radio className="w-3.5 h-3.5 text-cyan-400" /> Mode 1: Edge Stream Simulator (Active by Default)
+                  </span>
+                  <span className="px-2 py-0.5 text-[10px] bg-cyan-500/10 text-cyan-300 rounded border border-cyan-500/30">
+                    Cloud Vercel Demo
+                  </span>
+                </div>
+                <p className="text-slate-400 font-sans text-xs">
+                  Runs directly on Vercel without requiring any local software. Simulates real-time telemetry streams for <code className="text-cyan-300">google.com</code>, <code className="text-emerald-300">1.1.1.1</code>, and failure modes so recruiters can test the dashboard instantly online.
+                </p>
+              </div>
+
+              {/* Mode B: Local Java Backend Live Sync */}
+              <div className="p-4 bg-[#0b0f19] border border-emerald-500/30 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Mode 2: Live Local Java Engine Sync (localhost:8080)
+                  </span>
+                  <span className="px-2 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-300 rounded border border-emerald-500/30">
+                    Live Java Socket Probes
+                  </span>
+                </div>
+                <p className="text-slate-400 font-sans text-xs">
+                  When you run the Java multithreaded backend engine locally on your machine, it opens a lightweight REST endpoint at <code className="text-emerald-300">http://localhost:8080/api/telemetry</code>. This web dashboard automatically detects the local server and switches to <strong>JAVA ENGINE LIVE</strong>!
+                </p>
+
+                <div className="mt-3 pt-3 border-t border-slate-800/80">
+                  <span className="text-slate-400 block mb-1 text-[11px]">Run command to start Java engine locally:</span>
+                  <div className="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-lg border border-slate-800 text-emerald-400">
+                    <code>javac -d . src/NetworkMonitor.java; java engine.NetworkMonitor --continuous</code>
+                    <button 
+                      onClick={copyTerminalCmd}
+                      className="ml-2 p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition flex items-center gap-1 text-[11px]"
+                      title="Copy command"
+                    >
+                      {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedCmd ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="text-right">
+              <button 
+                onClick={() => setShowDataSourceModal(false)}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs rounded-lg transition"
+              >
+                Got It, Close Guide
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Architecture Modal */}
       {showArchModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#111827] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl">
@@ -464,6 +565,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-[#0b0f19] py-4 text-center text-xs text-slate-500 font-mono">
         Bhaswath Datla | UW Computer Science & Engineering | Network Observability Engine
       </footer>
